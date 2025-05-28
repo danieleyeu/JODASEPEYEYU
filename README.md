@@ -1,1 +1,390 @@
-# JODASEPEYEYU
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>조셉💁‍♀️ & 다니엘💁‍♂️ 정산 시스템</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.delete-btn {
+            background-color: #f44336;
+            width: auto;
+            padding: 5px 10px;
+            font-size: 12px;
+            margin-top: 0;
+        }
+        button.delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        #result {
+            margin-top: 20px;
+            display: none;
+        }
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        .history-details {
+            flex-grow: 1;
+        }
+        .category {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .final-result {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f0f8ff;
+            border-radius: 5px;
+        }
+        .expense-type {
+            margin-top: 5px;
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            display: inline-block;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #eef;
+            border-radius: 5px;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .currency {
+            font-family: monospace;
+        }
+        .date-tab {
+            margin-top: 15px;
+            padding: 8px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .date-history {
+            display: none;
+        }
+        .date-history.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👬 조셉💁‍♀️ & 다니엘💁‍♂️ 정산 ($)</h1>
+        
+        <div class="form-group">
+            <label for="payer">결제자</label>
+            <select id="payer">
+                <option value="조셉">조셉💁‍♀️</option>
+                <option value="다니엘">다니엘💁‍♂️</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="category">항목</label>
+            <select id="category">
+                <option value="장보기">🛒 장보기 (공용)</option>
+                <option value="주유">⛽ 주유 (공용)</option>
+                <option value="외식">🍽️ 외식 (공용)</option>
+                <option value="조셉 개인">👤 조셉💁‍♀️ 개인 지출</option>
+                <option value="다니엘 개인">👤 다니엘💁‍♂️ 개인 지출</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="amount">금액 ($)</label>
+            <input type="number" id="amount" placeholder="예) 15.00" step="0.01">
+        </div>
+        
+        <button onclick="addRecord()">기록 추가</button>
+        
+        <div id="result">
+            <div class="summary" id="summary">
+                <div class="summary-item">
+                    <span>조셉💁‍♀️ 총 지출:</span>
+                    <span class="currency" id="totalJoseph">$0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span>다니엘💁‍♂️ 총 지출:</span>
+                    <span class="currency" id="totalDaniel">$0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span>공용 지출 합계:</span>
+                    <span class="currency" id="totalShared">$0.00</span>
+                </div>
+            </div>
+            <div class="final-result" id="finalResult"></div>
+            <div id="dateTabs"></div>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        let totalJoseph = 0;
+        let totalDaniel = 0;
+        let totalShared = 0;
+        let history = {};
+
+        // 페이지 로드 시 저장된 기록 불러오기
+        function loadHistory() {
+            const savedHistory = localStorage.getItem('settlementHistory');
+            if (savedHistory) {
+                history = JSON.parse(savedHistory);
+                updateDateTabs();
+            } else {
+                history = {};
+                const today = new Date().toISOString().split('T')[0];
+                history[today] = [];
+                saveHistory();
+            }
+        }
+
+        // 기록 저장
+        function saveHistory() {
+            localStorage.setItem('settlementHistory', JSON.stringify(history));
+        }
+
+        // 날짜 탭 생성
+        function updateDateTabs() {
+            const dateTabs = document.getElementById('dateTabs');
+            dateTabs.innerHTML = '';
+            
+            const dates = Object.keys(history).sort().reverse();
+            dates.forEach(date => {
+                const tab = document.createElement('div');
+                tab.className = 'date-tab';
+                tab.textContent = date;
+                tab.onclick = () => toggleDateHistory(date);
+                dateTabs.appendChild(tab);
+            });
+            
+            // 가장 최근 날짜 자동 표시
+            if (dates.length > 0) {
+                toggleDateHistory(dates[0]);
+            }
+        }
+
+        // 날짜별 기록 토글
+        function toggleDateHistory(date) {
+            const allHistories = document.querySelectorAll('.date-history');
+            allHistories.forEach(div => div.classList.remove('active'));
+            
+            let historyDiv = document.getElementById(`history-${date}`);
+            if (!historyDiv) {
+                historyDiv = document.createElement('div');
+                historyDiv.id = `history-${date}`;
+                historyDiv.className = 'date-history';
+                document.getElementById('historyList').appendChild(historyDiv);
+            }
+            
+            historyDiv.classList.add('active');
+            renderHistory(date);
+        }
+
+        // 기록 렌더링
+        function renderHistory(date) {
+            const historyDiv = document.getElementById(`history-${date}`);
+            if (!historyDiv) return;
+            
+            historyDiv.innerHTML = '';
+            
+            if (!history[date] || history[date].length === 0) {
+                historyDiv.innerHTML = "<div style='text-align:center;padding:20px;color:#777;'>기록이 없습니다</div>";
+                return;
+            }
+            
+            history[date].forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                
+                const typeLabel = document.createElement('span');
+                typeLabel.className = 'expense-type';
+                typeLabel.textContent = item.isShared ? "공용 지출 (반씩 분할)" : "개인 지출 (전액 정산)";
+                typeLabel.style.backgroundColor = item.isShared ? "#e3f2fd" : "#ffebee";
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '삭제';
+                deleteBtn.onclick = () => deleteRecord(date, item.id);
+                
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'history-details';
+                
+                const payerWithGender = item.payer === "조셉" ? "조셉♀" : "다니엘♂";
+                const categoryWithGender = item.category.replace("조셉", "조셉♀").replace("다니엘", "다니엘♂");
+                
+                detailsDiv.innerHTML = `
+                    <div>
+                        <span class="category">${categoryWithGender}</span>
+                        <span>(${payerWithGender})</span>
+                        <div style="font-size:12px; color:#777;">${item.time}</div>
+                    </div>
+                    <div style="font-weight:bold;" class="currency">${formatCurrency(item.amount)}</div>
+                `;
+                
+                detailsDiv.insertBefore(typeLabel, detailsDiv.firstChild);
+                div.appendChild(detailsDiv);
+                div.appendChild(deleteBtn);
+                historyDiv.appendChild(div);
+            });
+        }
+
+        function formatCurrency(amount) {
+            return '$' + amount.toFixed(2);
+        }
+
+        function addRecord() {
+            const payer = document.getElementById('payer').value.replace(/[♀♂]/g, '').trim();
+            const category = document.getElementById('category').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            
+            if (isNaN(amount)) {
+                alert("금액을 올바르게 입력해주세요!");
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            if (!history[today]) history[today] = [];
+            
+            const record = {
+                id: Date.now(),
+                payer,
+                category,
+                amount,
+                isShared: !category.includes("개인"),
+                time: new Date().toLocaleTimeString()
+            };
+
+            history[today].push(record);
+            saveHistory();
+            calculateTotals();
+            updateDisplay();
+            document.getElementById('amount').value = "";
+        }
+
+        function calculateTotals() {
+            totalJoseph = 0;
+            totalDaniel = 0;
+            totalShared = 0;
+
+            Object.values(history).flat().forEach(item => {
+                if (item.isShared) {
+                    const sharedAmount = item.amount / 2;
+                    if (item.payer === "조셉") {
+                        totalJoseph += sharedAmount;
+                    } else {
+                        totalDaniel += sharedAmount;
+                    }
+                    totalShared += item.amount;
+                } else {
+                    if (item.category.includes("다니엘 개인")) {
+                        totalDaniel += item.amount;
+                    } else if (item.category.includes("조셉 개인")) {
+                        totalJoseph += item.amount;
+                    }
+                }
+            });
+        }
+
+        function deleteRecord(date, id) {
+            const index = history[date].findIndex(item => item.id === id);
+            if (index !== -1) {
+                history[date].splice(index, 1);
+                saveHistory();
+                calculateTotals();
+                updateDisplay();
+            }
+        }
+
+        function updateDisplay() {
+            updateResult();
+            updateDateTabs();
+            updateSummary();
+            document.getElementById('result').style.display = "block";
+        }
+
+        function updateResult() {
+            const diff = Math.abs(totalJoseph - totalDaniel);
+            let result = "";
+
+            if (totalJoseph > totalDaniel) {
+                result = `다니엘 → 조셉 에게 ${formatCurrency(diff)} 보내기`;
+            } else if (totalDaniel > totalJoseph) {
+                result = `조셉 → 다니엘 에게 ${formatCurrency(diff)} 보내기`;
+            } else {
+                result = "정산 완료! (같은 금액)";
+            }
+
+            document.getElementById('finalResult').textContent = result;
+        }
+
+        function updateSummary() {
+            document.getElementById('totalJoseph').textContent = formatCurrency(totalJoseph);
+            document.getElementById('totalDaniel').textContent = formatCurrency(totalDaniel);
+            document.getElementById('totalShared').textContent = `${formatCurrency(totalShared)} (각 ${formatCurrency(totalShared/2)})`;
+        }
+
+        // 초기 로드
+        loadHistory();
+    </script>
+</body>
+</html>
